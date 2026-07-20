@@ -1,0 +1,64 @@
+#!/bin/bash
+#
+# check-milatos-wind — daily wind forecast for Milatos beach (Crete, Greece)
+#
+# Fetches hourly wind speed for TOMORROW from the Open-Meteo API and sends
+# a color-flagged report to a Telegram chat via the Bot API:
+#   🟢 ≤ 10 km/h (calm)
+#   🟡 11–24 km/h
+#   🔴 > 24 km/h
+#
+# Configuration: set BOT_TOKEN and CHAT_ID as environment variables, or put
+# them in /etc/default/check-milatos-wind (see config.example).
+
+CONFIG_FILE="${WIND_CONFIG:-/etc/default/check-milatos-wind}"
+if [ -f "$CONFIG_FILE" ]; then
+  # shellcheck disable=SC1090
+  . "$CONFIG_FILE"
+fi
+
+: "${BOT_TOKEN:?Set BOT_TOKEN (Telegram bot token)}"
+: "${CHAT_ID:?Set CHAT_ID (Telegram chat id to notify)}"
+
+# Milatos beach, Crete
+LAT=35.3197
+LON=25.5673
+
+# Thresholds: green <= GREEN_MAX, yellow <= YELLOW_MAX, red above
+GREEN_MAX=10
+YELLOW_MAX=24
+
+# Hourly wind data for the next 48 hours
+DATA=$(curl -s "https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}&hourly=windspeed_10m&timezone=Europe/Athens&forecast_days=2")
+
+TOMORROW=$(date -d "tomorrow" +%Y-%m-%d)
+
+ALL_SPEEDS=($(echo "$DATA" | jq -r '.hourly.windspeed_10m[]'))
+ALL_TIMES=($(echo "$DATA" | jq -r '.hourly.time[]'))
+
+REPORT=""
+for i in "${!ALL_TIMES[@]}"; do
+  T="${ALL_TIMES[$i]}"
+  S="${ALL_SPEEDS[$i]}"
+  if [[ "$T" == "$TOMORROW"* ]]; then
+    HOUR=$(echo "$T" | cut -d'T' -f2 | cut -d':' -f1)
+    if (( $(echo "$S <= $GREEN_MAX" | bc -l) )); then
+      FLAG="🟢"
+    elif (( $(echo "$S <= $YELLOW_MAX" | bc -l) )); then
+      FLAG="🟡"
+    else
+      FLAG="🔴"
+    fi
+    REPORT="${REPORT}${FLAG} ${HOUR}:00 — ${S} km/h
+"
+  fi
+done
+
+if [ -n "$REPORT" ]; then
+  curl -s -X POST "https://api.telegram.org/bot${BOT_TOKEN}/sendMessage" \
+    --data-urlencode "chat_id=${CHAT_ID}" \
+    --data-urlencode "text=🌬️ Πρόγνωση ανέμου παραλίας Μιλάτου — Αύριο ($TOMORROW)
+🟢 ≤10 km/h | 🟡 11–24 km/h | 🔴 >24 km/h
+
+$REPORT" > /dev/null
+fi
