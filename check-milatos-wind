@@ -1,12 +1,17 @@
 #!/bin/bash
 #
-# check-milatos-wind — daily wind forecast for Milatos beach (Crete, Greece)
+# check-milatos-wind — daily wind and rain forecast for Lasithi, Crete
 #
 # Fetches hourly wind speed for TOMORROW from the Open-Meteo API and sends
 # a color-flagged report to a Telegram chat via the Bot API:
 #   🟢 ≤ 10 km/h (calm)
 #   🟡 11–24 km/h
 #   🔴 > 24 km/h
+#
+# A rain report for Fourni is sent only when rain is forecast. Rainy hours use:
+#   🌦️ light:    0.1–2.5 mm
+#   🌧️ moderate: >2.5–7.5 mm
+#   ⛈️ heavy:    >7.5 mm
 #
 # Configuration: set BOT_TOKEN and CHAT_ID as environment variables, or put
 # them in /etc/default/check-milatos-wind (see config.example).
@@ -24,17 +29,26 @@ fi
 LAT=35.3197
 LON=25.5673
 
+# Fourni, Lasithi, Crete
+RAIN_LAT=35.258297
+RAIN_LON=25.662362
+
 # Thresholds: green <= GREEN_MAX, yellow <= YELLOW_MAX, red above
 GREEN_MAX=10
 YELLOW_MAX=24
 
+# Hourly rain thresholds in millimetres. Amounts below RAIN_MIN are treated as dry.
+RAIN_MIN=0.1
+RAIN_LIGHT_MAX=2.5
+RAIN_MODERATE_MAX=7.5
+
 # Hourly wind data for the next 48 hours
-DATA=$(curl -s "https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}&hourly=windspeed_10m&timezone=Europe/Athens&forecast_days=2")
+DATA=$(curl -fsS "https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}&hourly=wind_speed_10m&timezone=Europe/Athens&forecast_days=2")
 
-TOMORROW=$(date -d "tomorrow" +%Y-%m-%d)
+TOMORROW=$(TZ=Europe/Athens date -d "tomorrow" +%Y-%m-%d)
 
-ALL_SPEEDS=($(echo "$DATA" | jq -r '.hourly.windspeed_10m[]'))
-ALL_TIMES=($(echo "$DATA" | jq -r '.hourly.time[]'))
+mapfile -t ALL_SPEEDS < <(jq -r '.hourly.wind_speed_10m[]' <<< "$DATA")
+mapfile -t ALL_TIMES < <(jq -r '.hourly.time[]' <<< "$DATA")
 
 REPORT=""
 for i in "${!ALL_TIMES[@]}"; do
@@ -55,10 +69,44 @@ for i in "${!ALL_TIMES[@]}"; do
 done
 
 if [ -n "$REPORT" ]; then
-  curl -s -X POST "https://api.telegram.org/bot${BOT_TOKEN}/sendMessage" \
+  curl -fsS -X POST "https://api.telegram.org/bot${BOT_TOKEN}/sendMessage" \
     --data-urlencode "chat_id=${CHAT_ID}" \
     --data-urlencode "text=🌬️ Πρόγνωση ανέμου παραλίας Μιλάτου — Αύριο ($TOMORROW)
 🟢 ≤10 km/h | 🟡 11–24 km/h | 🔴 >24 km/h
 
 $REPORT" > /dev/null
+fi
+
+# Open-Meteo's hourly precipitation is the total in millimetres for the
+# preceding hour. Only rainy hours are included in the Telegram alert.
+RAIN_DATA=$(curl -fsS "https://api.open-meteo.com/v1/forecast?latitude=${RAIN_LAT}&longitude=${RAIN_LON}&hourly=precipitation&precipitation_unit=mm&timezone=Europe/Athens&forecast_days=2")
+
+mapfile -t RAIN_AMOUNTS < <(jq -r '.hourly.precipitation[]' <<< "$RAIN_DATA")
+mapfile -t RAIN_TIMES < <(jq -r '.hourly.time[]' <<< "$RAIN_DATA")
+
+RAIN_REPORT=""
+for i in "${!RAIN_TIMES[@]}"; do
+  T="${RAIN_TIMES[$i]}"
+  R="${RAIN_AMOUNTS[$i]}"
+  if [[ "$T" == "$TOMORROW"* ]] && (( $(echo "$R >= $RAIN_MIN" | bc -l) )); then
+    HOUR=${T#*T}
+    if (( $(echo "$R <= $RAIN_LIGHT_MAX" | bc -l) )); then
+      SIGN="🌦️"
+    elif (( $(echo "$R <= $RAIN_MODERATE_MAX" | bc -l) )); then
+      SIGN="🌧️"
+    else
+      SIGN="⛈️"
+    fi
+    RAIN_REPORT="${RAIN_REPORT}${SIGN} ${HOUR} — ${R} mm
+"
+  fi
+done
+
+if [ -n "$RAIN_REPORT" ]; then
+  curl -fsS -X POST "https://api.telegram.org/bot${BOT_TOKEN}/sendMessage" \
+    --data-urlencode "chat_id=${CHAT_ID}" \
+    --data-urlencode "text=🌧️ Πρόγνωση βροχής Φουρνής Λασιθίου — Αύριο ($TOMORROW)
+🌦️ 0.1–2.5 mm | 🌧️ >2.5–7.5 mm | ⛈️ >7.5 mm
+
+$RAIN_REPORT" > /dev/null
 fi
