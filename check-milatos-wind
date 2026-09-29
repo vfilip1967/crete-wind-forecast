@@ -40,6 +40,7 @@ YELLOW_MAX=24
 # Hourly rain thresholds in millimetres. Amounts below RAIN_MIN are treated as dry.
 RAIN_MIN=0.1
 RAIN_PROBABILITY_MIN=50
+RAIN_LIKELY_MIN=70
 RAIN_LIGHT_MAX=2.5
 RAIN_MODERATE_MAX=7.5
 
@@ -94,14 +95,18 @@ for i in "${!RAIN_TIMES[@]}"; do
   if [[ "$T" == "$TOMORROW"* ]] && \
       { (( $(echo "$R >= $RAIN_MIN" | bc -l) )) || (( P >= RAIN_PROBABILITY_MIN )); }; then
     HOUR=${T#*T}
-    if (( $(echo "$R < $RAIN_MIN" | bc -l) )); then
-      SIGN="☔"
-    elif (( $(echo "$R <= $RAIN_LIGHT_MAX" | bc -l) )); then
-      SIGN="🌦️"
-    elif (( $(echo "$R <= $RAIN_MODERATE_MAX" | bc -l) )); then
-      SIGN="🌧️"
-    else
+    if (( $(echo "$R > $RAIN_MODERATE_MAX" | bc -l) )); then
       SIGN="⛈️"
+    elif (( $(echo "$R > $RAIN_LIGHT_MAX" | bc -l) )); then
+      SIGN="🌧️"
+    elif (( $(echo "$R >= $RAIN_MIN" | bc -l) )) && (( P >= RAIN_LIKELY_MIN )); then
+      SIGN="🌧️"
+    elif (( $(echo "$R >= $RAIN_MIN" | bc -l) )); then
+      SIGN="🌦️"
+    elif (( P >= RAIN_LIKELY_MIN )); then
+      SIGN="☔"
+    else
+      SIGN="☁️"
     fi
     RAIN_REPORT="${RAIN_REPORT}${SIGN} ${HOUR} — ${R} mm — ${P}%
 "
@@ -112,8 +117,8 @@ if [ -n "$RAIN_REPORT" ]; then
   curl -fsS -X POST "https://api.telegram.org/bot${BOT_TOKEN}/sendMessage" \
     --data-urlencode "chat_id=${CHAT_ID}" \
     --data-urlencode "text=🌧️ Πρόγνωση βροχής Φουρνής Λασιθίου — Αύριο ($TOMORROW)
-🌦️ 0.1–2.5 mm | 🌧️ >2.5–7.5 mm | ⛈️ >7.5 mm
-☔ πιθανότητα βροχής ≥${RAIN_PROBABILITY_MIN}%
+☁️ ≥${RAIN_PROBABILITY_MIN}% | ☔ ≥${RAIN_LIKELY_MIN}% χωρίς μετρήσιμη βροχή
+🌦️ 0.1–2.5 mm | 🌧️ πιθανή/μέτρια βροχή | ⛈️ >7.5 mm
 
 $RAIN_REPORT" > /dev/null
 fi
