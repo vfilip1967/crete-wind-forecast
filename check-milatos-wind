@@ -39,6 +39,7 @@ YELLOW_MAX=24
 
 # Hourly rain thresholds in millimetres. Amounts below RAIN_MIN are treated as dry.
 RAIN_MIN=0.1
+RAIN_PROBABILITY_MIN=50
 RAIN_LIGHT_MAX=2.5
 RAIN_MODERATE_MAX=7.5
 
@@ -79,25 +80,30 @@ fi
 
 # Open-Meteo's hourly precipitation is the total in millimetres for the
 # preceding hour. Only rainy hours are included in the Telegram alert.
-RAIN_DATA=$(curl -fsS "https://api.open-meteo.com/v1/forecast?latitude=${RAIN_LAT}&longitude=${RAIN_LON}&hourly=precipitation&precipitation_unit=mm&timezone=Europe/Athens&forecast_days=2")
+RAIN_DATA=$(curl -fsS "https://api.open-meteo.com/v1/forecast?latitude=${RAIN_LAT}&longitude=${RAIN_LON}&hourly=precipitation,precipitation_probability&precipitation_unit=mm&timezone=Europe/Athens&forecast_days=2")
 
 mapfile -t RAIN_AMOUNTS < <(jq -r '.hourly.precipitation[]' <<< "$RAIN_DATA")
+mapfile -t RAIN_PROBABILITIES < <(jq -r '.hourly.precipitation_probability[]' <<< "$RAIN_DATA")
 mapfile -t RAIN_TIMES < <(jq -r '.hourly.time[]' <<< "$RAIN_DATA")
 
 RAIN_REPORT=""
 for i in "${!RAIN_TIMES[@]}"; do
   T="${RAIN_TIMES[$i]}"
   R="${RAIN_AMOUNTS[$i]}"
-  if [[ "$T" == "$TOMORROW"* ]] && (( $(echo "$R >= $RAIN_MIN" | bc -l) )); then
+  P="${RAIN_PROBABILITIES[$i]}"
+  if [[ "$T" == "$TOMORROW"* ]] && \
+      { (( $(echo "$R >= $RAIN_MIN" | bc -l) )) || (( P >= RAIN_PROBABILITY_MIN )); }; then
     HOUR=${T#*T}
-    if (( $(echo "$R <= $RAIN_LIGHT_MAX" | bc -l) )); then
+    if (( $(echo "$R < $RAIN_MIN" | bc -l) )); then
+      SIGN="☔"
+    elif (( $(echo "$R <= $RAIN_LIGHT_MAX" | bc -l) )); then
       SIGN="🌦️"
     elif (( $(echo "$R <= $RAIN_MODERATE_MAX" | bc -l) )); then
       SIGN="🌧️"
     else
       SIGN="⛈️"
     fi
-    RAIN_REPORT="${RAIN_REPORT}${SIGN} ${HOUR} — ${R} mm
+    RAIN_REPORT="${RAIN_REPORT}${SIGN} ${HOUR} — ${R} mm — ${P}%
 "
   fi
 done
@@ -107,6 +113,7 @@ if [ -n "$RAIN_REPORT" ]; then
     --data-urlencode "chat_id=${CHAT_ID}" \
     --data-urlencode "text=🌧️ Πρόγνωση βροχής Φουρνής Λασιθίου — Αύριο ($TOMORROW)
 🌦️ 0.1–2.5 mm | 🌧️ >2.5–7.5 mm | ⛈️ >7.5 mm
+☔ πιθανότητα βροχής ≥${RAIN_PROBABILITY_MIN}%
 
 $RAIN_REPORT" > /dev/null
 fi

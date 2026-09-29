@@ -5,7 +5,8 @@
 This repository sends a daily Telegram forecast for the following day:
 
 - Hourly wind at Milatos beach, Crete.
-- A separate rain alert for Fourni, Lasithi, only when at least 0.1 mm is forecast in an hour.
+- A separate rain alert for Fourni, Lasithi, when at least 0.1 mm or at least a 50% rain
+  probability is forecast in an hour.
 
 ## Forecast presentation
 
@@ -15,9 +16,9 @@ Wind strength uses traffic-light symbols because they communicate severity clear
 - 🟡 above 10 and up to and including 24 km/h
 - 🔴 above 24 km/h
 
-Rain uses 🌦️ for 0.1–2.5 mm, 🌧️ for above 2.5–7.5 mm, and ⛈️ for above 7.5 mm.
-Keep the wind and rain alerts active together. Dry hours are omitted from the rain alert, and no
-rain message is sent when the entire forecast day is dry.
+Rain uses ☔ for probability-only warnings below 0.1 mm, 🌦️ for 0.1–2.5 mm, 🌧️ for above
+2.5–7.5 mm, and ⛈️ for above 7.5 mm. Keep the wind and rain alerts active together. Hours below
+both thresholds are omitted, and no rain message is sent when none qualify.
 
 ## Runtime and deployment
 
@@ -41,5 +42,5 @@ the user requests delivery or a missed forecast must be sent.
 ## Current state
 
 As of 2026-09-29, the traffic-light wind symbols and conditional Fourni rain alert are deployed.
-The corresponding implementation was pushed to `main` in commit `c0a6e29`.
-
+The rain trigger considers both forecast millimetres and precipitation probability to avoid
+missing high-probability events when the deterministic amount is still 0 mm.

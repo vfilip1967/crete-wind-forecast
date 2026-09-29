@@ -12,14 +12,16 @@ to a Telegram chat via the Bot API:
 - 🔴 > 24 km/h — windy
 
 It also fetches tomorrow's hourly precipitation for Fourni. A separate rain
-alert is sent only when at least one hour has 0.1 mm or more forecast:
+alert is sent when at least one hour has 0.1 mm or more forecast or at least
+a 50% probability of precipitation:
 
 - 🌦️ 0.1–2.5 mm — light rain
 - 🌧️ >2.5–7.5 mm — moderate rain
 - ⛈️ >7.5 mm — heavy rain
+- ☔ ≥50% probability with less than 0.1 mm in the deterministic forecast
 
-Dry hours are left out of the rain alert. The precipitation amount shown is
-the forecast total for that hour.
+Hours below both thresholds are left out. Each alerted hour shows the forecast
+precipitation amount and probability.
 
 Example message:
 
@@ -65,7 +67,7 @@ Example message:
 - **Location**: edit `LAT`/`LON` in the script (default: Milatos beach, 35.3197, 25.5673).
 - **Thresholds**: edit `GREEN_MAX` / `YELLOW_MAX`.
 - **Rain location**: edit `RAIN_LAT`/`RAIN_LON` (default: Fourni, 35.258297, 25.662362).
-- **Rain thresholds**: edit `RAIN_MIN`, `RAIN_LIGHT_MAX`, and `RAIN_MODERATE_MAX`.
+- **Rain thresholds**: edit `RAIN_MIN`, `RAIN_PROBABILITY_MIN`, `RAIN_LIGHT_MAX`, and `RAIN_MODERATE_MAX`.
 - **Config path**: set `WIND_CONFIG` to override the default `/etc/default/check-milatos-wind`.
 
 ## License
