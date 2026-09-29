@@ -16,9 +16,9 @@ alert is sent when at least one hour has 0.1 mm or more forecast or at least
 a 50% probability of precipitation:
 
 - ☁️ 50–69% probability with less than 0.1 mm forecast
-- ☔ ≥70% probability with less than 0.1 mm forecast
+- 🌧️ ≥70% probability with less than 0.1 mm forecast
 - 🌦️ 0.1–2.5 mm with less than 70% probability — possible light rain
-- 🌧️ 0.1–2.5 mm with ≥70% probability, or >2.5–7.5 mm — likely/moderate rain
+- ☔ 0.1–2.5 mm with ≥70% probability, or >2.5–7.5 mm — likely/moderate rain
 - ⛈️ >7.5 mm — heavy rain
 
 Hours below both thresholds are left out. Each alerted hour shows the forecast

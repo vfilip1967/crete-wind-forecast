@@ -98,13 +98,13 @@ for i in "${!RAIN_TIMES[@]}"; do
     if (( $(echo "$R > $RAIN_MODERATE_MAX" | bc -l) )); then
       SIGN="⛈️"
     elif (( $(echo "$R > $RAIN_LIGHT_MAX" | bc -l) )); then
-      SIGN="🌧️"
+      SIGN="☔"
     elif (( $(echo "$R >= $RAIN_MIN" | bc -l) )) && (( P >= RAIN_LIKELY_MIN )); then
-      SIGN="🌧️"
+      SIGN="☔"
     elif (( $(echo "$R >= $RAIN_MIN" | bc -l) )); then
       SIGN="🌦️"
     elif (( P >= RAIN_LIKELY_MIN )); then
-      SIGN="☔"
+      SIGN="🌧️"
     else
       SIGN="☁️"
     fi
@@ -117,8 +117,8 @@ if [ -n "$RAIN_REPORT" ]; then
   curl -fsS -X POST "https://api.telegram.org/bot${BOT_TOKEN}/sendMessage" \
     --data-urlencode "chat_id=${CHAT_ID}" \
     --data-urlencode "text=🌧️ Πρόγνωση βροχής Φουρνής Λασιθίου — Αύριο ($TOMORROW)
-☁️ ≥${RAIN_PROBABILITY_MIN}% | ☔ ≥${RAIN_LIKELY_MIN}% χωρίς μετρήσιμη βροχή
-🌦️ 0.1–2.5 mm | 🌧️ πιθανή/μέτρια βροχή | ⛈️ >7.5 mm
+☁️ ≥${RAIN_PROBABILITY_MIN}% | 🌧️ ≥${RAIN_LIKELY_MIN}% χωρίς μετρήσιμη βροχή
+🌦️ 0.1–2.5 mm | ☔ πιθανή/μέτρια βροχή | ⛈️ >7.5 mm
 
 $RAIN_REPORT" > /dev/null
 fi

@@ -16,7 +16,7 @@ Wind strength uses traffic-light symbols because they communicate severity clear
 - 🟡 above 10 and up to and including 24 km/h
 - 🔴 above 24 km/h
 
-Rain uses ☁️/☔ for probability-only warnings below 0.1 mm, 🌦️ for possible light rain, 🌧️ for
+Rain uses ☁️/🌧️ for probability-only warnings below 0.1 mm, 🌦️ for possible light rain, ☔ for
 likely light rain (at least 70%) or moderate rain, and ⛈️ above 7.5 mm. This combined scale must
 not make a low-probability 0 mm hour look stronger than a high-probability measurable-rain hour.
 Keep the wind and rain alerts active together. Hours below both alert thresholds are omitted, and
